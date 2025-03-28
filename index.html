@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>All Parking Zones</title>
+    <style>
+        canvas { border: 1px solid black; }
+        ul { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>All Parking Zones</h1>
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <h2>Overlapping Zones</h2>
+    <ul id="overlapList"></ul>
+    <script src="script.js"></script>
+    <script>
+        fetch('zones.json')
+            .then(response => response.json())
+            .then(zones => {
+                drawAllZones(zones);
+                listOverlappingZones(zones);
+            });
+    </script>
+</body>
+</html>
