@@ -7,7 +7,7 @@ function normalizeCoords(coords, canvasWidth, canvasHeight) {
 
   return coords.map(polygon =>
       polygon.map(point => [
-          ((point[0] - minX) / (maxX - minX)) * (canvasWidth - 100) + 50,
+          ((point[0] - minX) / (maxX - minX)) * (canvasWidth - 150) + 50, // Leave space for legend
           ((maxY - point[1]) / (maxY - minY)) * (canvasHeight - 100) + 50
       ])
   );
@@ -27,36 +27,19 @@ function drawPolygon(ctx, coords, color, fill = false) {
   else ctx.stroke();
 }
 
-// Function to get bounding box
-function getBoundingBox(coords) {
-  const x = coords.map(c => c[0]);
-  const y = coords.map(c => c[1]);
-  return {
-      minX: Math.min(...x), maxX: Math.max(...x),
-      minY: Math.min(...y), maxY: Math.max(...y)
-  };
-}
-
-// Function to check if two polygons overlap (bounding box method)
+// Function to check if two polygons overlap using Turf.js
 function doPolygonsOverlap(poly1, poly2) {
-  const bb1 = getBoundingBox(poly1);
-  const bb2 = getBoundingBox(poly2);
-  return bb1.minX < bb2.maxX && bb1.maxX > bb2.minX &&
-         bb1.minY < bb2.maxY && bb1.maxY > bb2.minY;
+  const geo1 = { type: 'Polygon', coordinates: [poly1] };
+  const geo2 = { type: 'Polygon', coordinates: [poly2] };
+  return turf.intersect(geo1, geo2) !== null;
 }
 
-// Function to approximate intersection coordinates (bounding box)
+// Function to get the exact intersection coordinates using Turf.js
 function getIntersectionCoords(poly1, poly2) {
-  const bb1 = getBoundingBox(poly1);
-  const bb2 = getBoundingBox(poly2);
-  const minX = Math.max(bb1.minX, bb2.minX);
-  const maxX = Math.min(bb1.maxX, bb2.maxX);
-  const minY = Math.max(bb1.minY, bb2.minY);
-  const maxY = Math.min(bb1.maxY, bb2.maxY);
-  return [
-      [minX, minY], [maxX, minY],
-      [maxX, maxY], [minX, maxY]
-  ];
+  const geo1 = { type: 'Polygon', coordinates: [poly1] };
+  const geo2 = { type: 'Polygon', coordinates: [poly2] };
+  const intersect = turf.intersect(geo1, geo2);
+  return intersect ? intersect.geometry.coordinates[0] : [];
 }
 
 // Draw all zones on the main page
@@ -94,22 +77,46 @@ function listOverlappingZones(zones) {
   });
 }
 
-// Draw overlapping zones in the detail page
+// Draw overlapping zones in the detail page with legend
 function drawOverlappingZones(zone1, zone2) {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const coords1 = zone1.area.coordinates[0][0];
   const coords2 = zone2.area.coordinates[0][0];
-  const allCoords = [coords1, coords2];
+  const intersection = getIntersectionCoords(coords1, coords2);
+  const allCoords = [coords1, coords2, intersection].filter(c => c.length > 0);
   const normalized = normalizeCoords(allCoords, canvas.width, canvas.height);
 
   // Draw zone1 in blue
   drawPolygon(ctx, normalized[0], 'blue');
   // Draw zone2 in red
   drawPolygon(ctx, normalized[1], 'red');
+  // Highlight intersection in yellow (filled)
+  if (normalized[2]) {
+      drawPolygon(ctx, normalized[2], 'yellow', true);
+  }
 
-  // Highlight intersection in yellow
-  const intersection = getIntersectionCoords(coords1, coords2);
-  const normIntersection = normalizeCoords([intersection], canvas.width, canvas.height)[0];
-  drawPolygon(ctx, normIntersection, 'yellow', true);
+  // Draw legend on the right
+  ctx.font = '16px Arial';
+  ctx.fillStyle = 'black';
+  const legendX = 50; // Position legend on the right
+  ctx.fillText('Legend:', legendX, 50);
+
+  // Zone 1 (blue)
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(legendX, 70, 20, 20);
+  ctx.fillStyle = 'black';
+  ctx.fillText(zone1.name, legendX + 30, 85);
+
+  // Zone 2 (red)
+  ctx.fillStyle = 'red';
+  ctx.fillRect(legendX, 100, 20, 20);
+  ctx.fillStyle = 'black';
+  ctx.fillText(zone2.name, legendX + 30, 115);
+
+  // Overlap (yellow)
+  ctx.fillStyle = 'yellow';
+  ctx.fillRect(legendX, 130, 20, 20);
+  ctx.fillStyle = 'black';
+  ctx.fillText('Overlap', legendX + 30, 145);
 }

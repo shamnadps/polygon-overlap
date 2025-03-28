@@ -5,24 +5,32 @@
     <title>Overlapping Zones</title>
     <style>
         canvas { border: 1px solid black; }
+        #container { position: relative; width: 800px; height: 600px; }
     </style>
 </head>
 <body>
     <h1>Overlapping Zones</h1>
-    <canvas id="canvas" width="800" height="600"></canvas>
+    <div id="container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script src="script.js"></script>
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const zone1Name = urlParams.get('zone1');
         const zone2Name = urlParams.get('zone2');
 
-        fetch('zones.json')
-            .then(response => response.json())
+        fetch('./zones.json')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
             .then(zones => {
                 const zone1 = zones.find(z => z.name === zone1Name);
                 const zone2 = zones.find(z => z.name === zone2Name);
                 drawOverlappingZones(zone1, zone2);
-            });
+            })
+            .catch(error => console.error('Error loading zones.json:', error));
     </script>
 </body>
 </html>

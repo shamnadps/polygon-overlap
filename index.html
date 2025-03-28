@@ -13,14 +13,19 @@
     <canvas id="canvas" width="800" height="600"></canvas>
     <h2>Overlapping Zones</h2>
     <ul id="overlapList"></ul>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script src="script.js"></script>
     <script>
-        fetch('zones.json')
-            .then(response => response.json())
+        fetch('./zones.json')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
             .then(zones => {
                 drawAllZones(zones);
                 listOverlappingZones(zones);
-            });
+            })
+            .catch(error => console.error('Error loading zones.json:', error));
     </script>
 </body>
 </html>
