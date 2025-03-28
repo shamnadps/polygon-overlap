@@ -7,7 +7,7 @@ function normalizeCoords(coords, canvasWidth, canvasHeight) {
 
   return coords.map(polygon =>
       polygon.map(point => [
-          ((point[0] - minX) / (maxX - minX)) * (canvasWidth - 150) + 50, // Leave space for legend
+          ((point[0] - minX) / (maxX - minX)) * (canvasWidth - 200) + 50,
           ((maxY - point[1]) / (maxY - minY)) * (canvasHeight - 100) + 50
       ])
   );
@@ -31,7 +31,13 @@ function drawPolygon(ctx, coords, color, fill = false) {
 function doPolygonsOverlap(poly1, poly2) {
   const geo1 = { type: 'Polygon', coordinates: [poly1] };
   const geo2 = { type: 'Polygon', coordinates: [poly2] };
-  return turf.intersect(geo1, geo2) !== null;
+  const intersect = turf.intersect(geo1, geo2);
+  if (intersect) {
+      const area = turf.area(intersect);
+      console.log('Intersection area:', area);
+      return area > 0.0001; // Adjust threshold (in square meters)
+  }
+  return false;
 }
 
 // Function to get the exact intersection coordinates using Turf.js
@@ -60,7 +66,9 @@ function listOverlappingZones(zones) {
   const overlaps = [];
   for (let i = 0; i < zones.length; i++) {
       for (let j = i + 1; j < zones.length; j++) {
-          if (doPolygonsOverlap(zones[i].area.coordinates[0][0], zones[j].area.coordinates[0][0])) {
+          const poly1 = zones[i].area.coordinates[0][0];
+          const poly2 = zones[j].area.coordinates[0][0];
+          if (doPolygonsOverlap(poly1, poly2)) {
               overlaps.push([zones[i].name, zones[j].name]);
           }
       }
@@ -81,9 +89,16 @@ function listOverlappingZones(zones) {
 function drawOverlappingZones(zone1, zone2) {
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   const coords1 = zone1.area.coordinates[0][0];
   const coords2 = zone2.area.coordinates[0][0];
   const intersection = getIntersectionCoords(coords1, coords2);
+  console.log('Zone1 coords:', coords1);
+  console.log('Zone2 coords:', coords2);
+  console.log('Intersection coords:', intersection);
+
   const allCoords = [coords1, coords2, intersection].filter(c => c.length > 0);
   const normalized = normalizeCoords(allCoords, canvas.width, canvas.height);
 
@@ -94,27 +109,27 @@ function drawOverlappingZones(zone1, zone2) {
   // Highlight intersection in yellow (filled)
   if (normalized[2]) {
       drawPolygon(ctx, normalized[2], 'yellow', true);
+  } else {
+      console.log('No visible overlap - intersection is empty or too small.');
   }
 
   // Draw legend on the right
   ctx.font = '16px Arial';
   ctx.fillStyle = 'black';
-  const legendX = 50; // Position legend on the right
-  ctx.fillText('Legend:', legendX, 50);
+  const legendX = 50;
+  console.log('Drawing legend at x:', legendX);
 
-  // Zone 1 (blue)
+  ctx.fillText('Legend:', legendX, 50);
   ctx.fillStyle = 'blue';
   ctx.fillRect(legendX, 70, 20, 20);
   ctx.fillStyle = 'black';
   ctx.fillText(zone1.name, legendX + 30, 85);
 
-  // Zone 2 (red)
   ctx.fillStyle = 'red';
   ctx.fillRect(legendX, 100, 20, 20);
   ctx.fillStyle = 'black';
   ctx.fillText(zone2.name, legendX + 30, 115);
 
-  // Overlap (yellow)
   ctx.fillStyle = 'yellow';
   ctx.fillRect(legendX, 130, 20, 20);
   ctx.fillStyle = 'black';
